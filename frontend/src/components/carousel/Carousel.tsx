@@ -8,6 +8,10 @@ import {
   Button,
 } from "./Carousel.styles";
 
+interface CarouselProps {
+  slides: { thumbnailUrl: string; videoUrl?: string }[];
+}
+
 export const Carousel: FC<CarouselProps> = ({ slides }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
