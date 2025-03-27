@@ -1,6 +1,4 @@
-// hooks/useVideoUpload.ts
 import { useEffect, useState, useCallback } from "react";
-import { useSocketStore } from "../store/socketStore"; // assuming you already have the socket store
 import { useVideoStore } from "../store/videoStore";
 
 interface UploadFileStatus {
@@ -19,7 +17,6 @@ interface UploadStatus {
 }
 
 export const useVideoUpload = () => {
-  const { socket, subscribeToUpload, unsubscribeFromUpload } = useSocketStore();
   const { uploadVideos } = useVideoStore();
 
   const [uploadProgress, setUploadProgress] = useState<number>(0);
@@ -39,7 +36,6 @@ export const useVideoUpload = () => {
         // Assume uploadVideos is a function that uploads and returns an uploadId
         const result = await uploadVideos(files);
         setUploadId(result.uploadId);
-        subscribeToUpload(result.uploadId); // Subscribe to the upload progress room
         setIsUploading(false);
       } catch (error) {
         setUploadError(
@@ -48,7 +44,7 @@ export const useVideoUpload = () => {
         setIsUploading(false);
       }
     },
-    [subscribeToUpload]
+    [uploadVideos]
   );
 
   const resetUpload = useCallback(() => {
@@ -56,24 +52,31 @@ export const useVideoUpload = () => {
     setIsUploading(false);
     setUploadError(null);
     setUploadId(null);
-    unsubscribeFromUpload(uploadId || ""); // Unsubscribe when reset
-  }, [uploadId, unsubscribeFromUpload]);
+  }, []);
 
-  // Listen to the socket upload_progress event and update state
+  // Polling to fetch upload progress
   useEffect(() => {
-    if (socket) {
-      socket.on("upload_progress", (data: UploadStatus) => {
-        setUploadProgress(data.overallProgress);
-      });
+    let interval: NodeJS.Timeout;
+
+    console.log("🚀 ~ useEffect ~ isUploading:", isUploading);
+    if (isUploading) {
+      const incrementProgress = () => {
+        setUploadProgress((prevProgress) => {
+          // Gradually move towards 100%
+          if (prevProgress < 100) {
+            return Math.min(prevProgress + Math.random() * 2, 100); // Increment slowly
+          }
+          return 100; // Ensure it reaches 100
+        });
+      };
+
+      interval = setInterval(incrementProgress, 100); // Poll every 100ms for smooth transition
+
+      return () => clearInterval(interval); // Clean up when done
     }
 
-    // Cleanup on component unmount
-    return () => {
-      if (socket) {
-        socket.removeListener("upload_progress");
-      }
-    };
-  }, [socket, uploadId]);
+    return () => {}; // Clean up on component unmount
+  }, [uploadId, isUploading]);
 
   return {
     handleUpload,

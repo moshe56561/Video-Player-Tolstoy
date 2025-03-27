@@ -8,21 +8,13 @@ import {
   HomeTitle,
   NoVideosMessage,
 } from "./HomePage.styles";
-import { useSocketStore } from "../../store/socketStore";
 
 export const HomePage = () => {
   const { videos, fetchVideos, isLoading } = useVideoStore();
-  const { connectSocket, disconnectSocket, isConnected } = useSocketStore();
 
   useEffect(() => {
     fetchVideos();
-    connectSocket();
-
-    // Cleanup function to disconnect socket when component unmounts
-    return () => {
-      disconnectSocket();
-    };
-  }, [fetchVideos, connectSocket, disconnectSocket]);
+  }, [fetchVideos]);
 
   const carouselSlides =
     videos.length > 0

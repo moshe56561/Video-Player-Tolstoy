@@ -1,6 +1,5 @@
 const { v4: uuidv4 } = require("uuid");
 const uploadService = require("../services/uploadService");
-const SocketManager = require("../utils/socketManager");
 
 // Persistent upload tracking
 const uploadStatus = {};
@@ -12,9 +11,6 @@ exports.uploadVideos = async (req, res) => {
   if (!files || files.length === 0) {
     return res.status(400).json({ error: "No video files provided" });
   }
-
-  // Get io from the SocketManager
-  const io = SocketManager.getIO();
 
   // Initialize upload status
   uploadStatus[uploadId] = {
@@ -31,18 +27,15 @@ exports.uploadVideos = async (req, res) => {
     })),
   };
 
-  // Emit initial upload status via socket
-  SocketManager.emitUploadProgress(uploadId, uploadStatus[uploadId]);
-
   try {
+    // Process the videos (asynchronous operation)
     const uploadedVideos = await uploadService.processVideos(
       files,
       uploadId,
-      uploadStatus,
-      io
+      uploadStatus
     );
 
-    // Final response
+    // Final response after upload completion
     res.json({
       uploadId,
       videos: uploadedVideos,
@@ -59,14 +52,6 @@ exports.uploadVideos = async (req, res) => {
       error: error.message,
     }));
 
-    // Emit final error status
-    SocketManager.getIO().emit("upload_status", uploadStatus[uploadId]);
-
-    // Clear the upload status after a delay
-    setTimeout(() => {
-      delete uploadStatus[uploadId];
-    }, 5000);
-
     res.status(500).json({
       error: "Video processing failed",
       uploadId,
@@ -74,5 +59,18 @@ exports.uploadVideos = async (req, res) => {
   }
 };
 
-// Export uploadStatus for potential socket access
+// Polling route to get upload progress (called periodically by client)
+exports.getUploadStatus = (req, res) => {
+  const { uploadId } = req.query;
+
+  if (!uploadId || !uploadStatus[uploadId]) {
+    return res
+      .status(404)
+      .json({ error: "Upload not found or has completed." });
+  }
+
+  res.json(uploadStatus[uploadId]);
+};
+
+// Export uploadStatus for potential access
 exports.uploadStatus = uploadStatus;

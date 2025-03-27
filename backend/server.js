@@ -1,40 +1,26 @@
 require("dotenv").config();
 const express = require("express");
 const http = require("http");
-const socketIo = require("socket.io");
 const cors = require("cors");
 
 const corsMiddleware = require("./src/middleware/cors");
 const errorHandler = require("./src/middleware/errorHandler");
 const uploadRoutes = require("./src/routes/uploadRoutes");
 const galleryRoutes = require("./src/routes/galleryRoutes");
-const SocketManager = require("./src/utils/socketManager");
 
+// Set up HTTP server and express app
 const PORT = process.env.PORT || 3001;
-
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server, {
-  cors: {
-    origin: "*", // Adjust to your frontend URL
-    methods: ["GET", "POST"],
-  },
-});
-
-// Initialize SocketManager to handle socket events
-SocketManager.init(io);
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(corsMiddleware);
 
-// Routes
+// Routes for API
 app.use("/api/upload", uploadRoutes);
 app.use("/api/gallery", galleryRoutes);
-
-// Socket setup (make sure this is done after SocketManager.init())
-require("./src/sockets/uploadSocket")(io);
 
 // Error handling middleware
 app.use(errorHandler);
@@ -46,4 +32,4 @@ server.listen(PORT, () => {
   console.log(`Gallery endpoint: GET http://localhost:${PORT}/api/gallery`);
 });
 
-module.exports = { app, server, io };
+module.exports = { app, server };

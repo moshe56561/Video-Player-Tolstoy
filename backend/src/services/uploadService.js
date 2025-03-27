@@ -2,7 +2,7 @@ const { v4: uuidv4 } = require("uuid");
 const thumbnailService = require("./thumbnailService");
 const blobService = require("./blobService");
 
-// Debounce function to control the frequency of emitted events
+// Persistent tracking for debouncing progress updates
 function debounce(func, delay) {
   let timeout;
   return function (...args) {
@@ -11,7 +11,7 @@ function debounce(func, delay) {
   };
 }
 
-exports.processVideos = async (files, uploadId, uploadStatus, io) => {
+exports.processVideos = async (files, uploadId, uploadStatus) => {
   const uploadPromises = files.map(async (file, index) => {
     return new Promise(async (resolve, reject) => {
       const currentUuid = uuidv4();
@@ -21,22 +21,23 @@ exports.processVideos = async (files, uploadId, uploadStatus, io) => {
       const thumbnailFilename = `thumb-${currentUuid}.jpg`;
 
       try {
-        // Debounced progress handler to avoid emitting too frequently
-        const debouncedEmitProgress = debounce(() => {
-          // Emit updated progress status
-          io.emit("upload_progress", {
-            uploadId: uploadId,
-            ...uploadStatus[uploadId],
-          });
-        }, 500); // Emits every 500ms at most
+        // Debounced progress handler to avoid frequent updates
+        const debouncedUpdateProgress = debounce(() => {
+          // Update progress status in uploadStatus
+          uploadStatus[uploadId].files[index].progress =
+            uploadStatus[uploadId].files[index].progress;
+          uploadStatus[uploadId].overallProgress = calculateOverallProgress(
+            uploadStatus[uploadId]
+          );
+        }, 500); // Updates every 500ms
 
         const progressHandler = (progressEvent) => {
           const percentCompleted = progressEvent.percentage;
           uploadStatus[uploadId].files[index].progress = percentCompleted;
           uploadStatus[uploadId].overallProgress = percentCompleted;
 
-          // Call debounced emit function
-          debouncedEmitProgress();
+          // Call debounced function to update progress
+          debouncedUpdateProgress();
         };
 
         // Generate and optimize thumbnail first
@@ -63,8 +64,10 @@ exports.processVideos = async (files, uploadId, uploadStatus, io) => {
 
         uploadStatus[uploadId].completedFiles++;
 
-        // Emit final progress update
-        io.emit("upload_status", uploadStatus[uploadId]);
+        // Once done, finalize overall progress
+        uploadStatus[uploadId].overallProgress = calculateOverallProgress(
+          uploadStatus[uploadId]
+        );
 
         resolve({
           url: videoBlob.url,
@@ -85,8 +88,6 @@ exports.processVideos = async (files, uploadId, uploadStatus, io) => {
           uploadStatus[uploadId]
         );
 
-        // Emit error status
-        io.emit("upload_status", uploadStatus[uploadId]);
         reject(error);
       }
     });
