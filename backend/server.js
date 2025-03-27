@@ -2,10 +2,10 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 
-const corsMiddleware = require("./src/middleware/cors");
-const errorHandler = require("./src/middleware/errorHandler");
-const uploadRoutes = require("./src/routes/uploadRoutes");
-const galleryRoutes = require("./src/routes/galleryRoutes");
+const corsMiddleware = require("./middleware/cors");
+const errorHandler = require("./middleware/errorHandler");
+const uploadRoutes = require("./routes/uploadRoutes");
+const galleryRoutes = require("./routes/galleryRoutes");
 
 // Set up express app
 const app = express();
@@ -27,5 +27,3 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
-
-module.exports = app;
